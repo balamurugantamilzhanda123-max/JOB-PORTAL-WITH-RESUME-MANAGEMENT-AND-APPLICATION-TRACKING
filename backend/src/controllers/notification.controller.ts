@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { env } from '../config/env';
 import {
   listUserNotifications,
   markAllNotificationsRead,
@@ -64,10 +65,12 @@ export function userEventsStreamController(req: Request, res: Response): void {
   res.flushHeaders?.();
 
   const sendEvent = (eventName: string, data: unknown) => {
+    if (res.writableEnded) return;
     res.write(`event: ${eventName}\n`);
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
+  res.write('retry: 5000\n\n');
   sendEvent('connected', { userId: req.user.id, timestamp: new Date().toISOString() });
 
   const unsubscribe = userRealtimeBus.subscribeUser(req.user.id, (payload) => {
@@ -75,13 +78,25 @@ export function userEventsStreamController(req: Request, res: Response): void {
   });
 
   const heartbeat = setInterval(() => {
-    res.write(': keep-alive\n\n');
-  }, 25000);
+    if (!res.writableEnded) {
+      res.write(': keep-alive\n\n');
+    }
+  }, 20000);
 
-  req.on('close', () => {
+  let maxStreamTimer: ReturnType<typeof setTimeout> | null = null;
+  const cleanup = () => {
     clearInterval(heartbeat);
+    if (maxStreamTimer) clearTimeout(maxStreamTimer);
     unsubscribe();
-    res.end();
-  });
+    if (!res.writableEnded) {
+      res.end();
+    }
+  };
+
+  if (env.IS_VERCEL) {
+    maxStreamTimer = setTimeout(cleanup, 55000);
+  }
+
+  req.on('close', cleanup);
 }
 

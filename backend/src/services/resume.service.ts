@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import { BlobAccessError, del, get, put } from '@vercel/blob';
 import { JobStatus, ParseStatus, Prisma, UserRole } from '@prisma/client';
+import { env } from '../config/env';
 import { prisma } from '../prisma/client';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors';
 import {
@@ -24,6 +26,123 @@ const ALLOWED_MIMES = new Set([
 
 async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true });
+}
+
+function hasBlobStorageConfigured(): boolean {
+  return Boolean(
+    env.BLOB_READ_WRITE_TOKEN ||
+      (process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN),
+  );
+}
+
+function isRemoteBlobKey(objectKey: string): boolean {
+  return objectKey.startsWith('https://') || objectKey.startsWith('http://');
+}
+
+async function storeResumeBytes(params: {
+  userId: string;
+  relativeKey: string;
+  buffer: Buffer;
+  mimeType: string;
+}): Promise<string> {
+  if (hasBlobStorageConfigured()) {
+    const pathname = `resumes/${params.relativeKey}`;
+    const preferredAccess = env.BLOB_ACCESS ?? 'private';
+
+    try {
+      const uploaded = await put(pathname, params.buffer, {
+        access: preferredAccess,
+        contentType: params.mimeType,
+        addRandomSuffix: false,
+      });
+      return uploaded.url;
+    } catch (error) {
+      if (!env.BLOB_ACCESS && error instanceof BlobAccessError) {
+        const uploaded = await put(pathname, params.buffer, {
+          access: 'public',
+          contentType: params.mimeType,
+          addRandomSuffix: false,
+        });
+        return uploaded.url;
+      }
+      throw error;
+    }
+  }
+
+  if (env.IS_VERCEL) {
+    throw new BadRequestError(
+      'Persistent resume storage is not configured. Connect a Vercel Blob store (BLOB_READ_WRITE_TOKEN) in your Vercel project settings.',
+    );
+  }
+
+  const userDir = path.join(UPLOAD_ROOT, params.userId);
+  await ensureDir(userDir);
+  const diskPath = path.resolve(UPLOAD_ROOT, params.relativeKey);
+
+  // Path traversal safeguard
+  if (!diskPath.startsWith(UPLOAD_ROOT)) {
+    throw new BadRequestError('Invalid storage path.');
+  }
+
+  await fs.writeFile(diskPath, params.buffer);
+  return params.relativeKey;
+}
+
+async function readResumeBytes(objectKey: string): Promise<Buffer> {
+  if (isRemoteBlobKey(objectKey)) {
+    if (!hasBlobStorageConfigured()) {
+      throw new BadRequestError('Vercel Blob credentials are missing in this environment.');
+    }
+
+    const preferredAccess = env.BLOB_ACCESS ?? 'private';
+    let result = null;
+
+    try {
+      result = await get(objectKey, { access: preferredAccess });
+    } catch (error) {
+      if (!env.BLOB_ACCESS && error instanceof BlobAccessError) {
+        result = await get(objectKey, { access: 'public' });
+      } else {
+        throw error;
+      }
+    }
+
+    if (!result && !env.BLOB_ACCESS) {
+      result = await get(objectKey, { access: 'public' }).catch(() => null);
+    }
+
+    if (!result || result.statusCode !== 200 || !result.stream) {
+      throw new NotFoundError('Stored resume blob could not be retrieved.');
+    }
+
+    const arrayBuffer = await new Response(result.stream).arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  if (env.IS_VERCEL) {
+    throw new NotFoundError('Local disk resume files are unavailable in serverless deployment.');
+  }
+
+  const diskPath = path.resolve(UPLOAD_ROOT, objectKey);
+  if (!diskPath.startsWith(UPLOAD_ROOT)) {
+    throw new BadRequestError('Invalid storage path.');
+  }
+
+  return fs.readFile(diskPath);
+}
+
+async function removeResumeBytes(objectKey: string): Promise<void> {
+  if (isRemoteBlobKey(objectKey)) {
+    if (hasBlobStorageConfigured()) {
+      await del(objectKey).catch(() => undefined);
+    }
+    return;
+  }
+
+  const diskPath = path.resolve(UPLOAD_ROOT, objectKey);
+  if (diskPath.startsWith(UPLOAD_ROOT)) {
+    await fs.unlink(diskPath).catch(() => undefined);
+  }
 }
 
 export async function uploadAndParseResume(params: {
@@ -58,17 +177,13 @@ export async function uploadAndParseResume(params: {
   }
 
   const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex');
-  const userDir = path.join(UPLOAD_ROOT, userId);
-  await ensureDir(userDir);
-  const objectKey = `${userId}/${crypto.randomUUID()}${ext}`;
-  const diskPath = path.resolve(UPLOAD_ROOT, objectKey);
-
-  // Path traversal safeguard
-  if (!diskPath.startsWith(UPLOAD_ROOT)) {
-    throw new BadRequestError('Invalid storage path.');
-  }
-
-  await fs.writeFile(diskPath, file.buffer);
+  const relativeKey = `${userId}/${crypto.randomUUID()}${ext}`;
+  const objectKey = await storeResumeBytes({
+    userId,
+    relativeKey,
+    buffer: file.buffer,
+    mimeType: file.mimetype,
+  });
 
   const { parsedJson, skillLabels } = parseResumeText(rawText);
 
@@ -201,12 +316,7 @@ export async function reparseCandidateResume(userId: string, resumeId: string) {
     throw new BadRequestError('No stored file associated with this resume record.');
   }
 
-  const diskPath = path.resolve(UPLOAD_ROOT, resume.objectKey);
-  if (!diskPath.startsWith(UPLOAD_ROOT)) {
-    throw new BadRequestError('Invalid storage path.');
-  }
-
-  const buffer = await fs.readFile(diskPath);
+  const buffer = await readResumeBytes(resume.objectKey);
   const rawText = await extractTextFromResumeBuffer(
     buffer,
     resume.mimeType || 'application/pdf',
@@ -247,10 +357,7 @@ export async function deleteCandidateResume(userId: string, resumeId: string) {
   if (resume.userId !== userId) throw new ForbiddenError('Access denied');
 
   if (resume.objectKey) {
-    const diskPath = path.resolve(UPLOAD_ROOT, resume.objectKey);
-    if (diskPath.startsWith(UPLOAD_ROOT)) {
-      await fs.unlink(diskPath).catch(() => undefined);
-    }
+    await removeResumeBytes(resume.objectKey);
   }
 
   await prisma.$transaction(async (tx) => {
@@ -304,10 +411,7 @@ export async function getAuthorizedResumeDownload(params: {
     throw new ForbiddenError('You are not authorized to download this resume file.');
   }
 
-  const diskPath = path.resolve(UPLOAD_ROOT, resume.objectKey);
-  if (!diskPath.startsWith(UPLOAD_ROOT)) {
-    throw new BadRequestError('Invalid file storage path');
-  }
+  const buffer = await readResumeBytes(resume.objectKey);
 
   await writeAuditLog(prisma, {
     actorId: params.requesterId,
@@ -318,7 +422,7 @@ export async function getAuthorizedResumeDownload(params: {
   });
 
   return {
-    diskPath,
+    buffer,
     fileName: resume.fileName || `${resume.title}.pdf`,
     mimeType: resume.mimeType || 'application/pdf',
   };

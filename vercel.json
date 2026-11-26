@@ -1,0 +1,41 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "frontend": {
+      "root": "frontend",
+      "framework": "nextjs"
+    },
+    "backend": {
+      "root": "backend",
+      "framework": "express",
+      "buildCommand": "npx prisma generate && npm run build",
+      "entrypoint": "dist/index.js",
+      "functions": {
+        "dist/index.js": {
+          "maxDuration": 60,
+          "includeFiles": "{prisma/**,node_modules/.prisma/**,node_modules/@prisma/**,node_modules/swagger-ui-dist/**}"
+        }
+      }
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api-docs(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
+  ]
+}

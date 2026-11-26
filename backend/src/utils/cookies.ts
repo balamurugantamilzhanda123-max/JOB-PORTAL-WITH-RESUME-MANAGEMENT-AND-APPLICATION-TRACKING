@@ -8,7 +8,7 @@ export const COOKIE_NAMES = {
   CSRF_TOKEN: 'ats_csrf_token',
 } as const;
 
-const isProduction = env.NODE_ENV === 'production';
+const isProduction = env.NODE_ENV === 'production' || env.IS_VERCEL;
 
 function baseHttpOnlyOptions(): CookieOptions {
   return {

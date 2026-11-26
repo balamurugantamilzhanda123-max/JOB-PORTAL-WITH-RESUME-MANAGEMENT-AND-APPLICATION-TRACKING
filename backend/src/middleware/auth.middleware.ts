@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import { UserRole } from '@prisma/client';
-import { env } from '../config/env';
+import { env, isOriginAllowed } from '../config/env';
 import { prisma, safeUserSelect } from '../prisma/client';
 import { COOKIE_NAMES } from '../utils/cookies';
 import { verifyAccessToken } from '../utils/crypto';
@@ -104,8 +104,8 @@ export function verifyCsrf(req: Request, _res: Response, next: NextFunction): vo
 
   const origin = req.get('origin');
   if (origin) {
-    const allowedOrigins = new Set([env.FRONTEND_URL, env.BACKEND_URL]);
-    if (!allowedOrigins.has(origin)) {
+    const requestHost = req.get('x-forwarded-host') || req.get('host');
+    if (!isOriginAllowed(origin, requestHost)) {
       next(new ForbiddenError('Invalid request origin', 'CSRF_ORIGIN_MISMATCH'));
       return;
     }

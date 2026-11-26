@@ -8,12 +8,16 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: {
+      db: {
+        url: env.RUNTIME_DATABASE_URL,
+      },
+    },
     log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 
-if (env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+// Reuse single PrismaClient across warm serverless invocations & dev hot-reloads
+globalForPrisma.prisma = prisma;
 
 /**
  * Explicit safe projection for User records so passwordHash is never queried or leaked.

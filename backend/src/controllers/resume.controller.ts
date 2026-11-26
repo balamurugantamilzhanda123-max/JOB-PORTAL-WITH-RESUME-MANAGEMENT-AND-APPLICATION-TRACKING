@@ -136,8 +136,9 @@ export async function downloadResumeController(
       'Content-Disposition',
       `inline; filename="${encodeURIComponent(file.fileName)}"`,
     );
+    res.setHeader('Content-Length', String(file.buffer.byteLength));
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.sendFile(file.diskPath);
+    res.send(file.buffer);
   } catch (error) {
     next(error);
   }

@@ -10,10 +10,9 @@ import {
   SavedJobItem,
   WorkMode,
 } from '@/types';
-import { apiRequest } from './api';
+import { apiRequest, API_BASE_URL } from './api';
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+export { API_BASE_URL };
 
 export interface JobUpsertPayload {
   title: string;

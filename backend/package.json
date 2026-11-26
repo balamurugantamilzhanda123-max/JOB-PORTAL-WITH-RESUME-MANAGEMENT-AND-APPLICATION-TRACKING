@@ -5,7 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
+    "postinstall": "prisma generate",
     "start": "node dist/server.js",
     "lint": "eslint src tests",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"prisma/**/*.ts\"",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
+    "@vercel/blob": "^2.9.0",
     "argon2": "^0.41.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

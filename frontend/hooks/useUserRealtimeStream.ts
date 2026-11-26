@@ -88,8 +88,19 @@ export function useUserRealtimeStream(enabled: boolean) {
 
     connect();
 
+    // Cross-instance serverless sync fallback for notifications, applications, and interviews
+    const pollTimer = setInterval(() => {
+      if (disposed || document.visibilityState !== 'visible') return;
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['candidate-applications'] });
+      void queryClient.invalidateQueries({ queryKey: ['candidate-interviews'] });
+      void queryClient.invalidateQueries({ queryKey: ['recruiter-pipeline'] });
+      void queryClient.invalidateQueries({ queryKey: ['recruiter-interviews'] });
+    }, 15000);
+
     return () => {
       disposed = true;
+      clearInterval(pollTimer);
       if (timerRef.current) clearTimeout(timerRef.current);
       source?.close();
     };

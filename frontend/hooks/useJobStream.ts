@@ -76,9 +76,17 @@ export function useJobStream(enabled: boolean) {
 
     connect();
 
+    // Cross-instance serverless sync fallback: refresh active queries periodically while tab is visible
+    const pollTimer = setInterval(() => {
+      if (isDisposed || document.visibilityState !== 'visible') return;
+      void queryClient.invalidateQueries({ queryKey: ['candidate-jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['candidate-bookmarks'] });
+    }, 15000);
+
     return () => {
       isDisposed = true;
       setConnected(false);
+      clearInterval(pollTimer);
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
       }
