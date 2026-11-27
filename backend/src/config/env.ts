@@ -64,15 +64,57 @@ const parsed = envSchema.safeParse({
   BACKEND_URL: process.env.BACKEND_URL || defaultBackendOrigin,
 });
 
-if (!parsed.success) {
+const isVercelOrCiBuild = Boolean(process.env.VERCEL || process.env.CI);
+
+if (!parsed.success && !isVercelOrCiBuild) {
   console.error('❌ Invalid environment configuration:', parsed.error.flatten().fieldErrors);
   throw new Error('Invalid environment configuration. Check your .env or Vercel environment variables.');
 }
 
+const configErrors = parsed.success ? null : parsed.error.flatten().fieldErrors;
+if (configErrors) {
+  console.warn(
+    '⚠️ Incomplete environment variables detected during Vercel/CI initialization:',
+    configErrors,
+  );
+}
+
 export const env = {
-  ...parsed.data,
-  RUNTIME_DATABASE_URL: resolvedRuntimeDatabaseUrl || parsed.data.DATABASE_URL,
+  NODE_ENV: (parsed.success
+    ? parsed.data.NODE_ENV
+    : process.env.NODE_ENV === 'production'
+      ? 'production'
+      : 'development') as 'development' | 'test' | 'production',
+  PORT: parsed.success ? parsed.data.PORT : Number(process.env.PORT || 4000),
+  DATABASE_URL: parsed.success ? parsed.data.DATABASE_URL : process.env.DATABASE_URL || '',
+  JWT_ACCESS_SECRET: parsed.success
+    ? parsed.data.JWT_ACCESS_SECRET
+    : process.env.JWT_ACCESS_SECRET || '',
+  JWT_REFRESH_SECRET: parsed.success
+    ? parsed.data.JWT_REFRESH_SECRET
+    : process.env.JWT_REFRESH_SECRET || '',
+  ACCESS_TOKEN_EXPIRY: parsed.success
+    ? parsed.data.ACCESS_TOKEN_EXPIRY
+    : process.env.ACCESS_TOKEN_EXPIRY || '15m',
+  REFRESH_TOKEN_EXPIRY: parsed.success
+    ? parsed.data.REFRESH_TOKEN_EXPIRY
+    : process.env.REFRESH_TOKEN_EXPIRY || '7d',
+  FRONTEND_URL: parsed.success ? parsed.data.FRONTEND_URL : defaultAppOrigin,
+  BACKEND_URL: parsed.success ? parsed.data.BACKEND_URL : defaultBackendOrigin,
+  ALLOWED_ORIGINS: parsed.success ? parsed.data.ALLOWED_ORIGINS : process.env.ALLOWED_ORIGINS,
+  BLOB_READ_WRITE_TOKEN: parsed.success
+    ? parsed.data.BLOB_READ_WRITE_TOKEN
+    : process.env.BLOB_READ_WRITE_TOKEN,
+  BLOB_ACCESS: parsed.success ? parsed.data.BLOB_ACCESS : undefined,
+  ADMIN_EMAIL: parsed.success ? parsed.data.ADMIN_EMAIL : process.env.ADMIN_EMAIL,
+  ADMIN_PASSWORD: parsed.success ? parsed.data.ADMIN_PASSWORD : process.env.ADMIN_PASSWORD,
+  ADMIN_FULL_NAME: parsed.success
+    ? parsed.data.ADMIN_FULL_NAME
+    : process.env.ADMIN_FULL_NAME || 'Platform Administrator',
+  RUNTIME_DATABASE_URL:
+    resolvedRuntimeDatabaseUrl || (parsed.success ? parsed.data.DATABASE_URL : ''),
   IS_VERCEL: Boolean(process.env.VERCEL),
+  CONFIG_ERRORS: configErrors,
 };
 export type Env = typeof env;
 

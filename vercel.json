@@ -8,10 +8,10 @@
     "backend": {
       "root": "backend",
       "framework": "express",
-      "buildCommand": "npx prisma generate && npm run build",
-      "entrypoint": "dist/index.js",
+      "buildCommand": "npx prisma generate",
+      "entrypoint": "src/index.ts",
       "functions": {
-        "dist/index.js": {
+        "src/index.ts": {
           "maxDuration": 60,
           "includeFiles": "{prisma/**,node_modules/.prisma/**,node_modules/@prisma/**,node_modules/swagger-ui-dist/**}"
         }

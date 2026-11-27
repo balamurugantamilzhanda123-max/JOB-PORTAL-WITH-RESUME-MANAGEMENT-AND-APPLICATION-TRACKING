@@ -157,7 +157,7 @@ When importing the GitHub repository in Vercel Dashboard (**Add New -> Project**
 | --- | --- |
 | **Root Directory** | `.` (leave empty / repository root) |
 | **Framework Preset** | **Other** (auto-governed by `services` in `vercel.json`: `frontend` uses `nextjs`, `backend` uses `express`) |
-| **Build Command** | Leave empty at project level (overridden per service in `vercel.json`: `backend` runs `npx prisma generate && npm run build`; `frontend` runs Next.js build) |
+| **Build Command** | Leave empty at project level (overridden per service in `vercel.json`: `backend` runs `npx prisma generate` and bundles `src/index.ts`; `frontend` runs Next.js build) |
 | **Output Directory** | Leave empty / default (managed per service) |
 | **Install Command** | Leave default (each service installs its own `package.json`; `backend` runs `postinstall` -> `prisma generate`) |
 
