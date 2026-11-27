@@ -225,8 +225,10 @@ export interface ParsedResumeData {
   contact: {
     email: string | null;
     phone: string | null;
+    location?: string | null;
     links: string[];
   };
+  summary?: string;
   skills: Array<{
     name: string;
     normalizedKey: string;
@@ -312,6 +314,11 @@ export interface ApplicationEventItem {
   publicNote: string | null;
   internalNote?: string | null;
   occurredAt: string;
+  actor?: {
+    id: string;
+    fullName: string;
+    role: UserRole;
+  } | null;
 }
 
 export interface InterviewRecord {
@@ -441,6 +448,8 @@ export interface FunnelAnalytics {
     totalApplications: number;
     interviewsCount: number;
     averageMatchScore: number | null;
+    timeToHireDaysAvg?: number | null;
+    jobFillRatePct?: number;
   };
   stageBreakdown: Record<ApplicationStage, number>;
   conversions: {
@@ -473,4 +482,76 @@ export interface AuditLogRecord {
     email: string;
     role: UserRole;
   } | null;
+}
+
+export interface UserProfileRecord {
+  id: string;
+  userId: string;
+  headline: string | null;
+  phone: string | null;
+  location: string | null;
+  bio: string | null;
+  experienceSummary: string | null;
+  education: string | null;
+  skills: string[];
+  portfolioUrl: string | null;
+  profileVisible: boolean;
+  emailNotifications: boolean;
+  interviewReminders: boolean;
+  marketingUpdates: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSessionRecord {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  rememberMe: boolean;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+  isCurrent: boolean;
+  isActive: boolean;
+}
+
+export interface NotificationPreferencesRecord {
+  emailNotifications: boolean;
+  interviewReminders: boolean;
+  marketingUpdates: boolean;
+  profileVisible: boolean;
+}
+
+export interface RetentionJobRecord {
+  id: string;
+  subjectType: string;
+  subjectId: string;
+  policyKey: string;
+  status: 'SCHEDULED' | 'ON_HOLD' | 'EXECUTED' | 'FAILED';
+  scheduledAt: string;
+  executedAt: string | null;
+  result: string | null;
+  holdReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SystemDiagnosticsRecord {
+  checkedAt: string;
+  environment: string;
+  deploymentPlatform: string;
+  api: { status: string; nodeVersion: string; uptimeSeconds: number };
+  database: { status: string; latencyMs: number; pooledRuntimeEnabled: boolean };
+  storage: { provider: string; accessMode: string; configured: boolean };
+  eventsAndQueues: {
+    transport: string;
+    outboxTotalCount: number;
+    outboxPendingCount: number;
+    resumeParseFailuresCount: number;
+  };
+  security: {
+    activeSessionsCount: number;
+    cookieSecureFlag: boolean;
+    emailProviderMode: string;
+  };
 }

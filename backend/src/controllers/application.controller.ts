@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import {
   getCandidateApplicationDetail,
+  getRecruiterApplicationDetail,
   getRecruiterPipelineOverview,
   listCandidateApplications,
   listRecruiterApplicationsForJob,
@@ -96,6 +97,21 @@ export async function recruiterPipelineController(
     if (!req.user) throw new UnauthorizedError();
     const applications = await getRecruiterPipelineOverview(req.user.id);
     sendSuccess(res, { applications }, 'Recruiter ATS pipeline retrieved', 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getRecruiterApplicationDetailController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) throw new UnauthorizedError();
+    const { id } = uuidParamSchema.parse(req.params);
+    const application = await getRecruiterApplicationDetail(req.user.id, id);
+    sendSuccess(res, { application }, 'Recruiter application detail retrieved', 200);
   } catch (error) {
     next(error);
   }

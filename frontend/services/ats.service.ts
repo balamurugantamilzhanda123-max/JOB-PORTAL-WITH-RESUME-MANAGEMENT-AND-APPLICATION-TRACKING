@@ -8,9 +8,13 @@ import {
   EvaluationRecord,
   FunnelAnalytics,
   InterviewRecord,
+  Job,
+  NotificationPreferencesRecord,
   NotificationRecord,
   ResumeReadinessResponse,
   ResumeRecord,
+  RetentionJobRecord,
+  SystemDiagnosticsRecord,
 } from '@/types';
 import { apiRequest } from './api';
 import { API_BASE_URL, CandidateJobSearchParams } from './jobs.service';
@@ -30,9 +34,34 @@ export const atsService = {
     return apiRequest<CandidateJobsResponse>(`/public/jobs${query ? `?${query}` : ''}`);
   },
 
+  getPublicJobDetail(id: string): Promise<{ job: Job }> {
+    return apiRequest<{ job: Job }>(`/public/jobs/${id}`);
+  },
+
   // Phase 3: Resumes
   listResumes(): Promise<{ resumes: ResumeRecord[] }> {
     return apiRequest<{ resumes: ResumeRecord[] }>('/candidate/resumes');
+  },
+
+  getResumeDetail(id: string): Promise<{ resume: ResumeRecord }> {
+    return apiRequest<{ resume: ResumeRecord }>(`/candidate/resumes/${id}`);
+  },
+
+  updateResume(
+    id: string,
+    payload: {
+      title?: string;
+      skills?: string[];
+      summary?: string;
+      email?: string;
+      phone?: string;
+      location?: string;
+    },
+  ): Promise<{ resume: ResumeRecord }> {
+    return apiRequest<{ resume: ResumeRecord }>(`/candidate/resumes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
   },
 
   uploadResume(formData: FormData): Promise<{ resume: ResumeRecord }> {
@@ -95,6 +124,20 @@ export const atsService = {
 
   listMyApplications(): Promise<{ applications: ApplicationRecord[] }> {
     return apiRequest<{ applications: ApplicationRecord[] }>('/candidate/applications');
+  },
+
+  getMyApplicationDetail(id: string): Promise<{ application: ApplicationRecord }> {
+    return apiRequest<{ application: ApplicationRecord }>(`/candidate/applications/${id}`);
+  },
+
+  getRecruiterApplicationDetail(id: string): Promise<{ application: ApplicationRecord }> {
+    return apiRequest<{ application: ApplicationRecord }>(`/recruiter/applications/${id}`);
+  },
+
+  listEvaluationsForApplication(applicationId: string): Promise<{ evaluations: EvaluationRecord[] }> {
+    return apiRequest<{ evaluations: EvaluationRecord[] }>(
+      `/recruiter/applications/${applicationId}/evaluations`,
+    );
   },
 
   listJobApplicants(jobId: string): Promise<{
@@ -262,6 +305,66 @@ export const atsService = {
 
   adminListAuditLogs(): Promise<{ logs: AuditLogRecord[] }> {
     return apiRequest<{ logs: AuditLogRecord[] }>('/admin/audit-logs');
+  },
+
+  getNotificationPreferences(): Promise<{ preferences: NotificationPreferencesRecord }> {
+    return apiRequest<{ preferences: NotificationPreferencesRecord }>('/notifications/preferences');
+  },
+
+  updateNotificationPreferences(
+    payload: Partial<NotificationPreferencesRecord>,
+  ): Promise<{ preferences: NotificationPreferencesRecord }> {
+    return apiRequest<{ preferences: NotificationPreferencesRecord }>(
+      '/notifications/preferences',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    );
+  },
+
+  adminRevokeUserSessions(userId: string, reason: string): Promise<{ revokedCount: number }> {
+    return apiRequest<{ revokedCount: number }>(`/admin/users/${userId}/revoke-sessions`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  adminListRetention(): Promise<{ jobs: RetentionJobRecord[] }> {
+    return apiRequest<{ jobs: RetentionJobRecord[] }>('/admin/retention');
+  },
+
+  adminCreateRetention(payload: {
+    subjectType: 'CandidateProfile' | 'Resume' | 'Application' | 'AuthSession';
+    subjectId: string;
+    policyKey: string;
+    scheduledAt?: string;
+    holdReason?: string;
+  }): Promise<{ job: RetentionJobRecord }> {
+    return apiRequest<{ job: RetentionJobRecord }>('/admin/retention', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  adminToggleRetentionHold(
+    id: string,
+    payload: { hold: boolean; holdReason?: string },
+  ): Promise<{ job: RetentionJobRecord }> {
+    return apiRequest<{ job: RetentionJobRecord }>(`/admin/retention/${id}/hold`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  adminExecuteRetention(id: string): Promise<{ job: RetentionJobRecord }> {
+    return apiRequest<{ job: RetentionJobRecord }>(`/admin/retention/${id}/execute`, {
+      method: 'POST',
+    });
+  },
+
+  adminGetSystemHealth(): Promise<SystemDiagnosticsRecord> {
+    return apiRequest<SystemDiagnosticsRecord>('/admin/system');
   },
 };
 

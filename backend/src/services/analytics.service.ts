@@ -27,9 +27,11 @@ export async function getHiringFunnelAnalytics(params: {
       where: appWhere,
       select: {
         id: true,
+        jobId: true,
         stage: true,
         matchScore: true,
         appliedAt: true,
+        updatedAt: true,
       },
     }),
     prisma.interview.count({
@@ -66,6 +68,9 @@ export async function getHiringFunnelAnalytics(params: {
 
   let scoreSum = 0;
   let scoreCount = 0;
+  let timeToHireDaysSum = 0;
+  let timeToHireCount = 0;
+  const filledJobIds = new Set<string>();
 
   for (const app of applications) {
     stageBreakdown[app.stage] = (stageBreakdown[app.stage] || 0) + 1;
@@ -73,10 +78,23 @@ export async function getHiringFunnelAnalytics(params: {
       scoreSum += Number(app.matchScore);
       scoreCount += 1;
     }
+    if (app.stage === ApplicationStage.HIRED || app.stage === ApplicationStage.OFFER) {
+      filledJobIds.add(app.jobId);
+      const days = Math.max(
+        0,
+        (app.updatedAt.getTime() - app.appliedAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      timeToHireDaysSum += days;
+      timeToHireCount += 1;
+    }
   }
 
   const averageMatchScore =
     scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 10) / 10 : null;
+  const timeToHireDaysAvg =
+    timeToHireCount > 0 ? Math.round((timeToHireDaysSum / timeToHireCount) * 10) / 10 : null;
+  const jobFillRatePct =
+    totalJobs > 0 ? Math.round((filledJobIds.size / totalJobs) * 100) : 0;
 
   const progressedBeyondApplied =
     totalApplications - stageBreakdown.APPLIED - stageBreakdown.WITHDRAWN;
@@ -95,6 +113,8 @@ export async function getHiringFunnelAnalytics(params: {
       totalApplications,
       interviewsCount,
       averageMatchScore,
+      timeToHireDaysAvg,
+      jobFillRatePct,
     },
     stageBreakdown,
     conversions: {

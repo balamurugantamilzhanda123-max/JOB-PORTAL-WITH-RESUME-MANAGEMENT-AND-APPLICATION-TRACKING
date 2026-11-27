@@ -28,6 +28,7 @@ import {
   reparseResumeController,
   resumeReadinessController,
   setDefaultResumeController,
+  updateResumeController,
   uploadResumeController,
 } from '../controllers/resume.controller';
 import { authenticate, authorizeRoles, verifyCsrf } from '../middleware/auth.middleware';
@@ -58,6 +59,7 @@ router.delete('/bookmarks/:jobId', verifyCsrf, removeBookmarkController);
 router.post('/resumes/upload', verifyCsrf, upload.single('file'), uploadResumeController);
 router.get('/resumes', listResumesController);
 router.get('/resumes/:id', getResumeDetailController);
+router.patch('/resumes/:id', verifyCsrf, updateResumeController);
 router.post('/resumes/:id/set-default', verifyCsrf, setDefaultResumeController);
 router.post('/resumes/:id/reparse', verifyCsrf, reparseResumeController);
 router.delete('/resumes/:id', verifyCsrf, deleteResumeController);

@@ -37,6 +37,7 @@ npm-debug.log*
 
 # OS & Editor
 .vercel
+*.tsbuildinfo
 .DS_Store
 Thumbs.db
 .vscode/

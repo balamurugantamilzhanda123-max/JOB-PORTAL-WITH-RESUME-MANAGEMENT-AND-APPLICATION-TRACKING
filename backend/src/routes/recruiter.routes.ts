@@ -5,6 +5,7 @@ import {
   upsertRecruiterCompanyController,
 } from '../controllers/analytics.controller';
 import {
+  getRecruiterApplicationDetailController,
   listJobApplicantsController,
   recruiterPipelineController,
   transitionApplicationStageController,
@@ -45,6 +46,7 @@ router.patch('/jobs/:id/status', verifyCsrf, updateRecruiterJobStatusController)
 // Phase 4: ATS Pipeline & Applicants
 router.get('/jobs/:jobId/applicants', listJobApplicantsController);
 router.get('/pipeline', recruiterPipelineController);
+router.get('/applications/:id', getRecruiterApplicationDetailController);
 router.patch('/applications/:id/stage', verifyCsrf, transitionApplicationStageController);
 
 // Phase 5: Interviews & Scorecards

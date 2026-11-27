@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
+  ApplicationStage,
   EmploymentType,
   ExperienceLevel,
   JobStatus,
@@ -142,4 +143,25 @@ export function getInitials(name: string): string {
   if (parts.length === 0) return 'U';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+export function formatStageLabel(stage: ApplicationStage): string {
+  switch (stage) {
+    case 'APPLIED':
+      return 'Applied';
+    case 'SCREENING':
+      return 'Screening';
+    case 'SHORTLISTED':
+      return 'Shortlisted';
+    case 'INTERVIEW':
+      return 'Interview';
+    case 'OFFER':
+      return 'Offer';
+    case 'HIRED':
+      return 'Hired';
+    case 'REJECTED':
+      return 'Rejected';
+    case 'WITHDRAWN':
+      return 'Withdrawn';
+  }
 }

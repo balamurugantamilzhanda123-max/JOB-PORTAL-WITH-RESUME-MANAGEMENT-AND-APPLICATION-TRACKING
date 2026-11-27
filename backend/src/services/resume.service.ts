@@ -290,6 +290,68 @@ export async function getCandidateResumeById(userId: string, resumeId: string) {
   return resume;
 }
 
+export async function updateCandidateResume(
+  userId: string,
+  resumeId: string,
+  updates: {
+    title?: string;
+    skills?: string[];
+    summary?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+  },
+  ipAddress?: string,
+) {
+  const existing = await prisma.resume.findUnique({ where: { id: resumeId } });
+  if (!existing) throw new NotFoundError('Resume not found');
+  if (existing.userId !== userId) throw new ForbiddenError('Access denied');
+
+  const currentParsed = (existing.parsedJson as Record<string, unknown> | null) ?? {};
+  const nextParsed = {
+    ...currentParsed,
+    ...(updates.summary !== undefined ? { summary: updates.summary } : {}),
+    ...(updates.email !== undefined || updates.phone !== undefined || updates.location !== undefined
+      ? {
+          contact: {
+            ...((currentParsed.contact as Record<string, unknown> | undefined) ?? {}),
+            ...(updates.email !== undefined ? { email: updates.email || null } : {}),
+            ...(updates.phone !== undefined ? { phone: updates.phone || null } : {}),
+            ...(updates.location !== undefined ? { location: updates.location || null } : {}),
+          },
+        }
+      : {}),
+  };
+
+  const normalizedSkills = updates.skills
+    ? Array.from(new Set(updates.skills.map((s) => s.trim()).filter(Boolean)))
+    : undefined;
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.resume.update({
+      where: { id: resumeId },
+      data: {
+        ...(updates.title ? { title: updates.title } : {}),
+        ...(normalizedSkills !== undefined ? { skills: normalizedSkills } : {}),
+        parsedJson: nextParsed as Prisma.InputJsonValue,
+      },
+      include: {
+        parseJobs: { orderBy: { createdAt: 'desc' }, take: 5 },
+      },
+    });
+
+    await writeAuditLog(tx, {
+      actorId: userId,
+      action: 'RESUME_CORRECTED',
+      entityType: 'Resume',
+      entityId: resumeId,
+      ipAddress,
+    });
+
+    return updated;
+  });
+}
+
 export async function setDefaultCandidateResume(userId: string, resumeId: string) {
   const resume = await prisma.resume.findUnique({ where: { id: resumeId } });
   if (!resume) throw new NotFoundError('Resume not found');

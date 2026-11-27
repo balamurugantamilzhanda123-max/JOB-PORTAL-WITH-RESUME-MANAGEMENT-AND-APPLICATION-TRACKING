@@ -1,10 +1,15 @@
 import { Router } from 'express';
 import {
+  changePasswordController,
+  getProfileController,
+  listMySessionsController,
   loginController,
   logoutController,
   meController,
   refreshController,
   registerController,
+  revokeMySessionController,
+  updateProfileController,
 } from '../controllers/auth.controller';
 import { authenticate, verifyCsrf } from '../middleware/auth.middleware';
 import { authRateLimiter } from '../middleware/rateLimit.middleware';
@@ -108,6 +113,11 @@ router.post('/logout', verifyCsrf, logoutController);
  *         description: Unauthenticated
  */
 router.get('/me', authenticate, meController);
+router.get('/profile', authenticate, getProfileController);
+router.patch('/profile', authenticate, verifyCsrf, updateProfileController);
+router.patch('/password', authenticate, verifyCsrf, changePasswordController);
+router.get('/sessions', authenticate, listMySessionsController);
+router.delete('/sessions/:id', authenticate, verifyCsrf, revokeMySessionController);
 
 export default router;
 

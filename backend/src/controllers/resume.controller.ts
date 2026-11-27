@@ -7,11 +7,16 @@ import {
   listCandidateResumes,
   reparseCandidateResume,
   setDefaultCandidateResume,
+  updateCandidateResume,
   uploadAndParseResume,
 } from '../services/resume.service';
 import { BadRequestError, UnauthorizedError } from '../utils/errors';
 import { sendSuccess } from '../utils/response';
-import { jobIdParamOnlySchema, uuidParamSchema } from '../validators/ats.validator';
+import {
+  jobIdParamOnlySchema,
+  resumeCorrectionSchema,
+  uuidParamSchema,
+} from '../validators/ats.validator';
 
 export async function uploadResumeController(
   req: Request,
@@ -66,6 +71,27 @@ export async function getResumeDetailController(
     const { id } = uuidParamSchema.parse(req.params);
     const resume = await getCandidateResumeById(req.user.id, id);
     sendSuccess(res, { resume }, 'Resume retrieved successfully', 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateResumeController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) throw new UnauthorizedError();
+    const { id } = uuidParamSchema.parse(req.params);
+    const body = resumeCorrectionSchema.parse(req.body);
+    const resume = await updateCandidateResume(
+      req.user.id,
+      id,
+      body,
+      req.ip || req.socket.remoteAddress,
+    );
+    sendSuccess(res, { resume }, 'Resume details updated', 200);
   } catch (error) {
     next(error);
   }

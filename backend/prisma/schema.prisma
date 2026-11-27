@@ -123,6 +123,7 @@ model User {
   ownedCompany       Company?            @relation("CompanyOwner")
   verifiedCompanies  Company[]           @relation("CompanyVerifier")
   auditLogs          AuditLog[]          @relation("AuditLogActor")
+  profile            UserProfile?
 
   @@index([role])
   @@index([isActive])
@@ -464,4 +465,45 @@ model OutboxEvent {
 
   @@index([publishedAt, createdAt])
   @@map("outbox_events")
+}
+
+model UserProfile {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @unique @map("user_id") @db.Uuid
+  headline           String?  @db.VarChar(200)
+  phone              String?  @db.VarChar(40)
+  location           String?  @db.VarChar(160)
+  bio                String?  @db.Text
+  experienceSummary  String?  @map("experience_summary") @db.Text
+  education          String?  @db.Text
+  skills             String[] @default([])
+  portfolioUrl       String?  @map("portfolio_url") @db.VarChar(500)
+  profileVisible     Boolean  @default(true) @map("profile_visible")
+  emailNotifications Boolean  @default(true) @map("email_notifications")
+  interviewReminders Boolean  @default(true) @map("interview_reminders")
+  marketingUpdates   Boolean  @default(false) @map("marketing_updates")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model RetentionJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  subjectType String    @map("subject_type") @db.VarChar(80)
+  subjectId   String    @map("subject_id") @db.VarChar(128)
+  policyKey   String    @map("policy_key") @db.VarChar(100)
+  status      String    @default("SCHEDULED") @db.VarChar(40)
+  scheduledAt DateTime  @map("scheduled_at") @db.Timestamptz(6)
+  executedAt  DateTime? @map("executed_at") @db.Timestamptz(6)
+  result      String?   @db.VarChar(500)
+  holdReason  String?   @map("hold_reason") @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, scheduledAt])
+  @@index([subjectType, subjectId])
+  @@map("retention_jobs")
 }

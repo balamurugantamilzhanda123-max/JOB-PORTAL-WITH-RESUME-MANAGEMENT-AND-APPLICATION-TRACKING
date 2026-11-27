@@ -100,3 +100,29 @@ export const companyVerifySchema = z.object({
   reason: z.string().trim().min(3, 'Verification decision reason is required').max(500),
 });
 
+export const resumeCorrectionSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  skills: z.array(z.string().trim().min(1).max(80)).max(60).optional(),
+  summary: z.string().trim().max(2000).optional(),
+  email: z.string().trim().email('Invalid contact email').optional().or(z.literal('')),
+  phone: z.string().trim().max(40).optional(),
+  location: z.string().trim().max(160).optional(),
+});
+
+export const retentionCreateSchema = z.object({
+  subjectType: z.enum(['CandidateProfile', 'Resume', 'Application', 'AuthSession']),
+  subjectId: z.string().trim().min(2).max(128),
+  policyKey: z.string().trim().min(3).max(100),
+  scheduledAt: z.string().datetime().optional(),
+  holdReason: z.string().trim().max(500).optional(),
+});
+
+export const retentionHoldSchema = z.object({
+  hold: z.boolean(),
+  holdReason: z.string().trim().max(500).optional(),
+});
+
+export const adminActionReasonSchema = z.object({
+  reason: z.string().trim().min(3).max(500).optional().default('Administrative security action'),
+});
+

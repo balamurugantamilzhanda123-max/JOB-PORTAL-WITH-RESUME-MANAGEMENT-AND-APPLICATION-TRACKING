@@ -5,10 +5,15 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../services/notification.service';
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from '../services/profile.service';
 import { userRealtimeBus } from '../services/realtime.service';
 import { UnauthorizedError } from '../utils/errors';
 import { sendSuccess } from '../utils/response';
 import { uuidParamSchema } from '../validators/ats.validator';
+import { notificationPreferencesSchema } from '../validators/auth.validator';
 
 export async function listNotificationsController(
   req: Request,
@@ -48,6 +53,35 @@ export async function markAllNotificationsReadController(
     if (!req.user) throw new UnauthorizedError();
     await markAllNotificationsRead(req.user.id);
     sendSuccess(res, null, 'All notifications marked as read', 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getNotificationPreferencesController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) throw new UnauthorizedError();
+    const preferences = await getNotificationPreferences(req.user.id);
+    sendSuccess(res, { preferences }, 'Notification preferences retrieved', 200);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateNotificationPreferencesController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    if (!req.user) throw new UnauthorizedError();
+    const body = notificationPreferencesSchema.parse(req.body);
+    const preferences = await updateNotificationPreferences(req.user.id, body);
+    sendSuccess(res, { preferences }, 'Notification preferences updated', 200);
   } catch (error) {
     next(error);
   }

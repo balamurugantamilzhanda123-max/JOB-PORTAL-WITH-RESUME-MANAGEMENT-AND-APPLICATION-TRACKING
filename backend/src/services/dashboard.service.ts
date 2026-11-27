@@ -3,7 +3,7 @@ import { prisma, safeUserSelect } from '../prisma/client';
 import { NotFoundError } from '../utils/errors';
 
 export async function getCandidateDashboardData(userId: string) {
-  const [
+  const {
     user,
     resumeCount,
     applicationCount,
@@ -11,30 +11,30 @@ export async function getCandidateDashboardData(userId: string) {
     publishedJobsCount,
     upcomingInterviewsCount,
     unreadNotificationsCount,
-  ] = await Promise.all([
-    prisma.user.findUnique({
+  } = await prisma.$transaction(async (tx) => {
+    const u = await tx.user.findUnique({
       where: { id: userId },
       select: safeUserSelect,
-    }),
-    prisma.resume.count({
-      where: { userId },
-    }),
-    prisma.application.count({
-      where: { candidateId: userId },
-    }),
-    prisma.jobBookmark.count({
-      where: { candidateId: userId },
-    }),
-    prisma.job.count({
-      where: { status: JobStatus.PUBLISHED },
-    }),
-    prisma.interview.count({
+    });
+    const rCount = await tx.resume.count({ where: { userId } });
+    const aCount = await tx.application.count({ where: { candidateId: userId } });
+    const bCount = await tx.jobBookmark.count({ where: { candidateId: userId } });
+    const pCount = await tx.job.count({ where: { status: JobStatus.PUBLISHED } });
+    const iCount = await tx.interview.count({
       where: { application: { candidateId: userId }, startAt: { gte: new Date() } },
-    }),
-    prisma.notification.count({
-      where: { userId, readAt: null },
-    }),
-  ]);
+    });
+    const nCount = await tx.notification.count({ where: { userId, readAt: null } });
+
+    return {
+      user: u,
+      resumeCount: rCount,
+      applicationCount: aCount,
+      bookmarkedJobsCount: bCount,
+      publishedJobsCount: pCount,
+      upcomingInterviewsCount: iCount,
+      unreadNotificationsCount: nCount,
+    };
+  });
 
   if (!user) {
     throw new NotFoundError('Candidate profile not found');
@@ -73,34 +73,41 @@ export async function getCandidateDashboardData(userId: string) {
 }
 
 export async function getRecruiterDashboardData(userId: string) {
-  const [
+  const {
     user,
     publishedJobsCount,
     totalJobsCount,
     applicantsCount,
     scheduledInterviewsCount,
     unreadNotificationsCount,
-  ] = await Promise.all([
-    prisma.user.findUnique({
+  } = await prisma.$transaction(async (tx) => {
+    const u = await tx.user.findUnique({
       where: { id: userId },
       select: safeUserSelect,
-    }),
-    prisma.job.count({
+    });
+    const pubCount = await tx.job.count({
       where: { recruiterId: userId, status: JobStatus.PUBLISHED },
-    }),
-    prisma.job.count({
-      where: { recruiterId: userId },
-    }),
-    prisma.application.count({
+    });
+    const totCount = await tx.job.count({ where: { recruiterId: userId } });
+    const appCount = await tx.application.count({
       where: { job: { recruiterId: userId } },
-    }),
-    prisma.interview.count({
+    });
+    const intCount = await tx.interview.count({
       where: { application: { job: { recruiterId: userId } } },
-    }),
-    prisma.notification.count({
+    });
+    const notifCount = await tx.notification.count({
       where: { userId, readAt: null },
-    }),
-  ]);
+    });
+
+    return {
+      user: u,
+      publishedJobsCount: pubCount,
+      totalJobsCount: totCount,
+      applicantsCount: appCount,
+      scheduledInterviewsCount: intCount,
+      unreadNotificationsCount: notifCount,
+    };
+  });
 
   if (!user) {
     throw new NotFoundError('Recruiter profile not found');

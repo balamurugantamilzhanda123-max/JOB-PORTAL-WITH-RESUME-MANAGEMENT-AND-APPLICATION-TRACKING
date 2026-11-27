@@ -434,6 +434,62 @@ export async function getRecruiterPipelineOverview(recruiterId: string) {
   }));
 }
 
+export async function getRecruiterApplicationDetail(
+  recruiterId: string,
+  applicationId: string,
+) {
+  const app = await prisma.application.findUnique({
+    where: { id: applicationId },
+    include: {
+      job: {
+        select: {
+          id: true,
+          recruiterId: true,
+          title: true,
+          company: true,
+          location: true,
+          workMode: true,
+          employmentType: true,
+          requiredSkills: true,
+          status: true,
+        },
+      },
+      candidate: {
+        select: { id: true, fullName: true, email: true },
+      },
+      events: {
+        orderBy: { occurredAt: 'asc' },
+        include: {
+          actor: { select: { id: true, fullName: true, role: true } },
+        },
+      },
+      interviews: {
+        orderBy: { startAt: 'asc' },
+      },
+      evaluations: {
+        orderBy: { submittedAt: 'desc' },
+        include: {
+          reviewer: { select: { id: true, fullName: true } },
+        },
+      },
+    },
+  });
+
+  if (!app) throw new NotFoundError('Application not found');
+  if (app.job.recruiterId !== recruiterId) {
+    throw new ForbiddenError('You do not have permission to view this application.');
+  }
+
+  return {
+    ...app,
+    matchScore: app.matchScore != null ? Number(app.matchScore) : null,
+    evaluations: app.evaluations.map((ev) => ({
+      ...ev,
+      rating: ev.rating != null ? Number(ev.rating) : null,
+    })),
+  };
+}
+
 export async function transitionApplicationStage(params: {
   recruiterId: string;
   applicationId: string;
